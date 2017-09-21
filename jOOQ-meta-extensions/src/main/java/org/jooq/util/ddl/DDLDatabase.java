@@ -34,19 +34,6 @@
  */
 package org.jooq.util.ddl;
 
-import static org.jooq.tools.StringUtils.isBlank;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Scanner;
-
 import org.jooq.DSLContext;
 import org.jooq.Queries;
 import org.jooq.Query;
@@ -55,6 +42,16 @@ import org.jooq.impl.DSL;
 import org.jooq.tools.JooqLogger;
 import org.jooq.util.SchemaDefinition;
 import org.jooq.util.h2.H2Database;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.*;
+
+import static org.jooq.tools.StringUtils.isBlank;
 
 /**
  * The DDL database.
@@ -77,16 +74,20 @@ public class DDLDatabase extends H2Database {
     @Override
     protected DSLContext create0() {
         if (connection == null) {
-            String scripts = getProperties().getProperty("scripts");
-            String encoding = getProperties().getProperty("encoding", "UTF-8");
+            Properties properties = getProperties();
+            String scripts = properties.getProperty("scripts", "");
+            String encoding = properties.getProperty("encoding", "UTF-8");
 
             if (isBlank(scripts)) {
-                scripts = "";
                 log.warn("No scripts defined", "It is recommended that you provide an explicit script directory to scan");
             }
 
             try {
-                connection = DriverManager.getConnection("jdbc:h2:mem:jooq-meta-extensions", "sa", "");
+                String url = properties.getProperty("url", "jdbc:h2:mem:jooq-meta-extensions");
+                String username = properties.getProperty("username", "sa");
+                String password = properties.getProperty("password", "");
+
+                connection = DriverManager.getConnection(url, username, password);
 
                 InputStream in = null;
                 try {

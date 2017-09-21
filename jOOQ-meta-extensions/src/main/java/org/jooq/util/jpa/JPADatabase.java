@@ -34,23 +34,12 @@
  */
 package org.jooq.util.jpa;
 
-import static org.jooq.tools.StringUtils.defaultIfBlank;
-import static org.jooq.tools.StringUtils.isBlank;
-
-import java.lang.reflect.Method;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.EnumSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map.Entry;
-
-import javax.persistence.AttributeConverter;
-import javax.persistence.Entity;
-
+import org.hibernate.boot.MetadataSources;
+import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
+import org.hibernate.cfg.AvailableSettings;
+import org.hibernate.engine.jdbc.connections.spi.ConnectionProvider;
+import org.hibernate.tool.hbm2ddl.SchemaExport;
+import org.hibernate.tool.schema.TargetType;
 import org.jooq.DSLContext;
 import org.jooq.Name;
 import org.jooq.SQLDialect;
@@ -61,16 +50,21 @@ import org.jooq.tools.JooqLogger;
 import org.jooq.util.SchemaDefinition;
 import org.jooq.util.h2.H2Database;
 import org.jooq.util.jaxb.ForcedType;
-
-import org.hibernate.boot.MetadataSources;
-import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
-import org.hibernate.cfg.AvailableSettings;
-import org.hibernate.engine.jdbc.connections.spi.ConnectionProvider;
-import org.hibernate.tool.hbm2ddl.SchemaExport;
-import org.hibernate.tool.schema.TargetType;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
+
+import javax.persistence.AttributeConverter;
+import javax.persistence.Entity;
+import java.lang.reflect.Method;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.*;
+import java.util.Map.Entry;
+
+import static org.jooq.tools.StringUtils.defaultIfBlank;
+import static org.jooq.tools.StringUtils.isBlank;
 
 /**
  * The JPA database.
@@ -100,17 +94,21 @@ public class JPADatabase extends H2Database {
     @Override
     protected DSLContext create0() {
         if (connection == null) {
-            String packages = getProperties().getProperty("packages");
+            Properties properties = getProperties();
+            String packages = properties.getProperty("packages", "");
 
             if (isBlank(packages)) {
-                packages = "";
                 log.warn("No packages defined", "It is highly recommended that you provide explicit packages to scan");
             }
 
-            boolean useAttributeConverters = Boolean.valueOf(getProperties().getProperty("use-attribute-converters", "true"));
+            boolean useAttributeConverters = Boolean.valueOf(properties.getProperty("use-attribute-converters", "true"));
 
             try {
-                connection = DriverManager.getConnection("jdbc:h2:mem:jooq-meta-extensions", "sa", "");
+                String url = properties.getProperty("url", "jdbc:h2:mem:jooq-meta-extensions");
+                String username = properties.getProperty("username", "sa");
+                String password = properties.getProperty("password", "");
+
+                connection = DriverManager.getConnection(url, username, password);
 
                 MetadataSources metadata = new MetadataSources(
                     new StandardServiceRegistryBuilder()
